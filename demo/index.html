@@ -402,6 +402,7 @@ if (STATIC) {
   $('rec').style.opacity = .45; $('rec').style.cursor = 'not-allowed';
   $('status').textContent = 'Pick a test clip below to see what each system wrote. Live recording runs with the local server.';
   document.querySelector('.privacy-line').hidden = true;
+  document.querySelector('.nav-badge').hidden = true;
   $('clips-lede').textContent = 'Clips from the ASCEND test set, from speakers the model never heard in training. Play one to hear it, or show what each system wrote.';
   fetch('results.json').then(r => r.ok ? r.json() : {}).then(o => { SAVED = o; }).catch(() => {});
 }

@@ -1,6 +1,6 @@
 # Verbatim: catching speech-to-text that silently translates bilingual speakers
 
-**Track:** Languages · **Demo video:** https://youtu.be/Uo6DG6jCHGo
+**Track:** Languages · **Demo video:** https://youtu.be/Uo6DG6jCHGo · **Demo site:** https://brandonlign.github.io/verbatim/
 
 ## The problem
 Many bilingual people mix two languages in one sentence. Speech-to-text sometimes doesn't write down what they said. It writes a fluent translation instead. In one real clip, "那你有没有什么favourite foods" ("do you have any favorite foods?") came out of Whisper as **"That you have no favorite food?"**, a different sentence with the opposite meaning, that reads perfectly fine. As transcripts become records (AI-scribe visit notes, voicemails, captions), errors like this go unnoticed. About 27 million people in the US have limited English proficiency ([KFF](https://www.kff.org/racial-equity-and-health-policy/issue-brief/overview-of-health-coverage-and-care-for-individuals-with-limited-english-proficiency/)).
@@ -14,7 +14,7 @@ Many bilingual people mix two languages in one sentence. Speech-to-text sometime
 2. **Cross-checks.** Regular Whisper decodes the same clip three ways: auto-detect, Mandarin forced + mixed-language prompt, and English forced + mixed-language prompt.
 3. **Choose and flag.** Broken versions are dropped (loops, impossible word rate, wrong script, empty output), and the most confident version is kept. The line is flagged when the model is unsure, when the versions disagree, or when a third language is detected.
 4. **Mark the words.** Inside each line, the words the model was least sure of are underlined, so the reader knows where to listen.
-5. **Demo:** speak a sentence, or replay a real test clip, and see plain Whisper next to Verbatim (`demo/`).
+5. **Demo:** speak a sentence, or replay a real test clip, and see plain Whisper next to Verbatim (`demo/`). The [hosted copy](https://brandonlign.github.io/verbatim/) shows saved results for the test clips; live recording needs the local server.
 
 ![Demo: plain Whisper invents a sentence; Verbatim keeps the Chinese, flags the line and underlines the invented words](docs/demo.png)
 
