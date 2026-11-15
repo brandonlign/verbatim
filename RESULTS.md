@@ -1,7 +1,5 @@
 # Verbatim: full results
 
-The timeline of every decision, with timestamps, is in [NOTES_INTEGRITY.md](NOTES_INTEGRITY.md).
-
 One disclosure: before any method existed, a first pilot ran on 80 clips that are inside the ASCEND test set, and that pilot shaped the starting idea (forcing the language plus a mixed-language prompt). Every threshold and model choice after that was made on validation.
 
 ## Versions

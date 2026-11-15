@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     names = list(FEATURE_GROUPS["base"]); best = auc(y, loo_scores(rows, names)); kept = ["base"]
     print(f"leave-one-out AUC, base signals: {best:.3f}")
-    for g in ("token",):  # the translate-match group was dropped: turbo does not translate (see NOTES_INTEGRITY.md)
+    for g in ("token",):  # the translate-match group was dropped: turbo does not translate (see RESULTS.md)
         a = auc(y, loo_scores(rows, names + FEATURE_GROUPS[g]))
         keep = a > best
         print(f"  + {g}: {a:.3f} -> {'kept' if keep else 'not kept'}")

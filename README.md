@@ -33,7 +33,7 @@ Our own idea, closest to suggested project 4.4.3. We added our own question (tra
 - **Model:** [Whisper large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo).
   - Decoder fine-tuned with the encoder frozen: 800 steps × 8 clips, about 2.5 hours on an M3 laptop.
   - Cross-checks run with [mlx-whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper).
-- **Fair testing:** every threshold and model choice was made on validation and saved with a timestamp before the test set was scored once. Two early looks at test data are logged: a pilot on 80 test clips before the method existed, and one printout of error rates by language group while designing v1 ([log](NOTES_INTEGRITY.md)).
+- **Fair testing:** every threshold and model choice was made on validation and saved with a timestamp before the test set was scored once. There were two early looks at test data: a pilot on 80 test clips before the method existed, and one printout of error rates by language group while designing v1. The saved settings are in `data/thresholds_*_frozen.json`.
 - **Word marks:** a word is underlined when its token log-probability is below −0.60, a cut-off chosen on validation and saved before the test set was scored.
 - **Measures:**
   - Mixed error rate (MER): total edits (substitutions, deletions, insertions) divided by total reference tokens, counting Chinese characters and English words.
