@@ -331,7 +331,7 @@ mark{background:none;color:inherit;text-decoration:underline dotted var(--flag-s
     <div class="section-head">
       <p class="eyebrow">Test clips</p>
       <h2 id="clips-title">Real speakers, real failures.</h2>
-      <p>Clips from the ASCEND test set, from speakers the model never heard in training. Play one to hear it, or run it through both systems live.</p>
+      <p id="clips-lede">Clips from the ASCEND test set, from speakers the model never heard in training. Play one to hear it, or run it through both systems live.</p>
     </div>
     <div id="examples" class="clips"><p class="status" style="text-align:left">Clips load when the demo server is running.</p></div>
   </section>
@@ -394,6 +394,17 @@ mark{background:none;color:inherit;text-decoration:underline dotted var(--flag-s
 
 <script>
 const $ = id => document.getElementById(id);
+// Hosted copy (e.g. GitHub Pages) has no model server: show saved pipeline output instead of running live.
+const STATIC = !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+let SAVED = {};
+if (STATIC) {
+  $('rec').disabled = true; $('rec').title = 'Recording needs the local server (see the README)';
+  $('rec').style.opacity = .45; $('rec').style.cursor = 'not-allowed';
+  $('status').textContent = 'Pick a test clip below to see what each system wrote. Live recording runs with the local server.';
+  document.querySelector('.privacy-line').hidden = true;
+  $('clips-lede').textContent = 'Clips from the ASCEND test set, from speakers the model never heard in training. Play one to hear it, or show what each system wrote.';
+  fetch('results.json').then(r => r.ok ? r.json() : {}).then(o => { SAVED = o; }).catch(() => {});
+}
 const ICON_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10-6.5z"/></svg>';
 const ICON_FLAG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4m0 1h11l-2 4 2 4H5"/></svg>';
 const ICON_OK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
@@ -423,7 +434,7 @@ $('rec').onclick = async () => {
       $('status').textContent = 'Transcribing…'; working(true);
       const blob = new Blob(chunks, {type: mr.mimeType});
       try {
-        const r = await fetch('/transcribe?lang=' + $('lang').value, {method: 'POST', body: blob});
+        const r = await fetch('transcribe?lang=' + $('lang').value, {method: 'POST', body: blob});
         show(await r.json());
         $('status').textContent = 'Done.';
       } catch (e) { $('status').textContent = 'Something went wrong. Try again.'; }
@@ -448,16 +459,22 @@ function show(o) {
     ? `<div class="verdict warn">${ICON_FLAG}<span>Check this line against the audio${(o.reasons || []).length ? ': ' + esc(o.reasons.join('; ')) : ''}.</span></div>`
     : `<div class="verdict">${ICON_OK}<span>No warning signs.</span></div>`;
 }
-function play(id) { const p = $('player'); p.src = '/audio/' + id + '.wav'; p.play(); }
+function play(id) { const p = $('player'); p.src = 'audio/' + id + '.wav'; p.play(); }
 async function runExample(id, card) {
   document.querySelectorAll('.clip.active').forEach(e => e.classList.remove('active')); card.classList.add('active');
-  play(id); $('status').textContent = 'Transcribing the clip…'; working(true);
+  play(id);
   $('composer').scrollIntoView({behavior: 'smooth', block: 'center'});
-  try { show(await (await fetch('/example/' + id)).json()); $('status').textContent = 'Live run on test clip ' + id + '.'; }
+  if (STATIC) {
+    if (SAVED[id]) { show(SAVED[id]); $('status').textContent = 'Test clip ' + id + ': saved output of the full pipeline.'; }
+    else $('status').textContent = 'Saved results are still loading. Try again in a moment.';
+    return;
+  }
+  $('status').textContent = 'Transcribing the clip…'; working(true);
+  try { show(await (await fetch('example/' + id)).json()); $('status').textContent = 'Live run on test clip ' + id + '.'; }
   catch (e) { $('status').textContent = 'Something went wrong. Try again.'; }
   working(false);
 }
-fetch('/examples.json').then(r => r.ok ? r.json() : []).then(xs => {
+fetch('examples.json').then(r => r.ok ? r.json() : []).then(xs => {
   if (!xs.length) return;
   $('examples').innerHTML = xs.map(x => `<article class="clip">
     ${x.id ? `<button class="clip-play" type="button" aria-label="Play clip" onclick="play('${esc(x.id)}')">${ICON_PLAY}</button>` : '<span></span>'}
@@ -467,7 +484,7 @@ fetch('/examples.json').then(r => r.ok ? r.json() : []).then(xs => {
       <div class="clip-line"><span class="clip-k">Verbatim</span><span class="clip-v" lang="zh-Hans">${esc(x.verbatim)}</span></div>
       ${x.flagged || x.note ? `<div class="clip-note">${x.flagged ? '<span class="badge badge-flag">Flagged for review</span>' : ''}${x.note ? `<span class="badge badge-quiet">${esc(x.note)}</span>` : ''}</div>` : ''}
     </div>
-    ${x.id ? `<button class="btn btn-secondary btn-small clip-run" type="button" onclick="runExample('${esc(x.id)}', this.closest('.clip'))">Run live</button>` : ''}
+    ${x.id ? `<button class="btn btn-secondary btn-small clip-run" type="button" onclick="runExample('${esc(x.id)}', this.closest('.clip'))">${STATIC ? 'Show result' : 'Run live'}</button>` : ''}
   </article>`).join('');
 }).catch(() => {});
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
