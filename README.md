@@ -1,6 +1,6 @@
 # Verbatim: catching speech-to-text that silently translates bilingual speakers
 
-**Track:** AI + Languages
+**Track:** Languages
 
 ## The problem
 Many bilingual people mix two languages in one sentence. Speech-to-text sometimes doesn't write down what they said. It writes a fluent translation instead. In one real clip, "那你有没有什么favourite foods" ("do you have any favorite foods?") came out of Whisper as **"That you have no favorite food?"**, a different sentence with the opposite meaning, that reads perfectly fine. As transcripts become records (AI-scribe visit notes, voicemails, captions), errors like this go unnoticed. About 27 million people in the US have limited English proficiency ([KFF](https://www.kff.org/racial-equity-and-health-policy/issue-brief/overview-of-health-coverage-and-care-for-individuals-with-limited-english-proficiency/)).
@@ -39,40 +39,39 @@ Our own idea, closest to suggested project 4.4.3. We added our own question (tra
   - Mixed error rate (MER): total edits (substitutions, deletions, insertions) divided by total reference tokens, counting Chinese characters and English words.
   - Blind labels: a native Chinese reader labeled 347 transcripts in two rounds, with the systems shuffled and unnamed. Re-labeling 71 plain-Whisper lines matched the first round on 69.
 
-## Results (ASCEND test, held out)
-| | Plain Whisper (baseline) | Verbatim |
+## Results
+All numbers are on the ASCEND test set: two speakers, neither heard in training or validation, scored once after every setting was frozen.
+
+**In short:**
+1. **47% fewer word errors** on mixed-language speech: 23.3% → 12.3% (CI 33–62% relative). Both speakers improved.
+2. **When Verbatim flags a line, it is wrong:** 11 of 11 flags on a random, blind, human-labeled sample (CI 74–100%). The flag catches about a quarter of the errors.
+3. **Underlined words are wrong 56% of the time**, against 10% for words overall, so the reader knows where to listen.
+
+| ASCEND test | Plain Whisper | Verbatim |
 |---|---|---|
-| Mixed error rate, 369 clips | 23.3% | **12.3%** (47% fewer errors, CI 33–62%) |
-| Mixed error rate, all speech: the same 369 plus 584 single-language clips | 20.4% | **12.4%** |
-| Lines fully correct, human-judged (70 random) | 26 (37%) | 28 (40%) |
-| Lines silently translated, human-judged (70 random) | 8 (11%) | 7 (10%) |
-| Human-confirmed translations no longer translated | — | 13 of 21 |
-| **Flags that pointed at a real error (70 random)** | — | **11 of 11 (CI 74–100%)** |
-| Real errors flagged (70 random) | — | 11 of 42 (26%) |
-| Flags that pointed at a real error (all 99 labeled lines, including 29 picked as likely translations) | — | 25 of 28 (89%) |
-| **Underlined words that were wrong (369 clips, against the reference)** | — | **196 of 347 (56%, CI 51–62%)**; 1 word in 10 is wrong overall |
+| **Word errors** (mixed error rate) | | |
+| 369 mixed-language clips | 23.3% | **12.3%** |
+| All 953 clips, including 584 single-language ones | 20.4% | **12.4%** |
+| **Translations** (blind human labels) | | |
+| Lines plain Whisper translated, still translated | 21 of 21 | **8 of 21** |
+| **Review aids** (Verbatim only) | | |
+| Flagged lines that had a real error (70 random lines) | — | **11 of 11** |
+| Lines with an error that were flagged (70 random lines) | — | 11 of 42 |
+| Underlined words that were wrong (all 369 clips) | — | **196 of 347** |
 
-**What this means:** fine-tuning brings transcripts much closer to what was said. But a native speaker still found an error in most lines, from either system, because most fixed lines go from badly wrong to slightly wrong. The flag is precise but quiet: when it flags a line, there is almost always an error, but it flags about a quarter of the errors. The underline works the same way one level down: an underlined word is wrong more often than not, and 37% of all wrong words are underlined.
+**Error rate vs. whole lines.** On 70 random lines judged blind, 40% of Verbatim's lines were fully correct against 37% for plain Whisper. Most lines it fixes go from badly wrong to slightly wrong, which the error rate counts and a line-level label does not. That is why the flag and underlines are part of the system.
 
-**Both test speakers improved:** 34.1% → 17.2% and 17.4% → 9.7% (the test set has two speakers, neither heard in training).
+**Single-language speech improves too:** Mandarin-only 15.2% → 10.0% (414 clips), English-only 26.0% → 21.3% (170 clips).
 
-**It does not break ordinary speech.** The same speakers also say sentences with no mixing, and a transcriber sees those too. On 414 Mandarin-only test clips the error rate went from 15.2% to 10.0%, and on 170 English-only clips from 26.0% to 21.3%. Plain Whisper wrote 9 Mandarin-only clips mostly in English; Verbatim did that on 3.
-
-**By language** (MER, plain → Verbatim):
-- Mandarin–English real speech: 23.3% → 12.3%.
-- Mandarin–English synthetic: 6.6% → 7.7%.
-- Spanish–English synthetic: 6.6% → 6.3%. Verbatim fixed both of plain Whisper's Spanish→English translations, without fine-tuning.
-
-**Clean synthetic speech hides the problem:** plain Whisper translated 0 of 294 synthetic Mandarin clips, but 8% of real ones.
+**Second, unseen dataset** (ServiceNow, synthetic speech): Spanish–English 6.6% → 6.3%, and both of plain Whisper's Spanish→English translations were fixed without any Spanish fine-tuning. Mandarin–English went 6.6% → 7.7%, from writing-style differences (below). Plain Whisper never translated this clean synthetic Mandarin (0 of 294) but did on 29 of 369 real clips by the automatic count, so synthetic benchmarks miss the problem.
 
 **Where it fails:**
-- **Short phrases at language switches** still get translated. "就是hard choice" became "this is hard choice."
-- **Writing style.** On synthetic speech, the fine-tuned model writes numbers as Chinese characters ("ID七四零五六一七"), so its score is worse even though the meaning is right.
-- **When every version makes the same mistake,** nothing is flagged. "使用这个function的时候" became "使用这个方向的时候" everywhere.
-- **Spanish flags** pointed at no real errors (0 of 11).
-- **English-only speech gets flagged a lot** (44% of lines), because the model is less sure there. 60 of those 75 flagged lines did have an error.
+- **Short phrases at a language switch** still get translated: "就是hard choice" → "this is hard choice".
+- **When every decode makes the same mistake,** nothing is flagged: "使用这个function的时候" → "使用这个方向的时候".
+- **Writing style carries over from ASCEND:** numbers come out as Chinese characters ("ID七四零五六一七"), which costs points on other datasets.
+- **The flag doesn't transfer yet:** it fires on 44% of English-only lines (60 of 75 had an error) and found no real errors in Spanish (0 of 11).
 
-More tables and examples are in [RESULTS.md](RESULTS.md).
+Full tables, the v4 flag we tried and did not adopt, and examples: [RESULTS.md](RESULTS.md).
 
 ## What we'd do next
 1. Fine-tune on a mix of real code-switched sources, including Spanish–English conversation, and train harder on short switch-point phrases.
@@ -93,6 +92,19 @@ More tables and examples are in [RESULTS.md](RESULTS.md).
   - Whisper on ASCEND, [arXiv 2510.18724](https://arxiv.org/abs/2510.18724).
 - **AI tools:** [Claude Code](https://claude.com/claude-code) (Anthropic) helped write code and analysis.
 
-How to run everything: [RESULTS.md#reproduce](RESULTS.md#reproduce). Requirements: an Apple Silicon Mac, Python 3, and FFmpeg (for the demo's microphone audio). The fine-tuned weights (1.6 GB) are not in the repo; `scripts/finetune.py` rebuilds them in about 2.5 hours, and the demo runs without them using the regular Whisper decodes.
+## Run it
+Needs an Apple Silicon Mac on macOS 14 or later, Python 3.12 and FFmpeg (for microphone audio). [uv](https://docs.astral.sh/uv/) or plain `venv` both work.
 
-The result files in `data/` include reference transcripts from ASCEND (CC BY-SA 4.0, shared under the same license) and ServiceNow asr_codeswitched. Seven short ASCEND test clips are included in `demo/audio/` for the demo (same license). Other audio and the model weights are not included.
+```bash
+git clone https://github.com/brandonlign/verbatim && cd verbatim
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python tests/test_verbatim.py                 # 12 tests, recomputes the headline numbers from saved outputs
+.venv/bin/python scripts/get_weights.py                 # downloads the fine-tuned decoder (688 MB) and rebuilds the model
+.venv/bin/python demo/server.py --ft models/ft_decoder  # then open http://localhost:8780
+```
+
+- **Weights:** only the decoder was trained, so the [release](https://github.com/brandonlign/verbatim/releases/tag/v1.0) holds just the 100 changed tensors. `get_weights.py` loads the public base model, swaps them in and checks all 587 tensors against `models_sha256.json`. Training from scratch instead: `scripts/finetune.py`, about 2.5 hours on an M3.
+- **Without `--ft`,** the demo runs the regular-Whisper version (v2).
+- **Every experiment:** [RESULTS.md#reproduce](RESULTS.md#reproduce).
+
+The result files in `data/` include reference transcripts from ASCEND (CC BY-SA 4.0, shared under the same license) and ServiceNow asr_codeswitched. Seven short ASCEND test clips are included in `demo/audio/` for the demo (same license). The fine-tuned weights are a derivative of Whisper (MIT) trained on ASCEND (CC BY-SA 4.0).

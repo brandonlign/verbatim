@@ -1,11 +1,16 @@
-# inference + evaluation (Apple Silicon)
-mlx-whisper
-pandas
-pyarrow
-soundfile
-soxr
-jiwer
-opencc-python-reimplemented
-# fine-tuning + fine-tuned decoding
-torch
-transformers
+# versions used for every reported result (Apple Silicon, Python 3.12)
+# inference + evaluation
+mlx==0.32.4
+mlx-whisper==0.4.3
+numpy==2.5.4
+pandas==3.1.1
+pyarrow==26.0.1
+soundfile==0.14.0
+soxr==1.1.0
+jiwer==4.0.0
+opencc-python-reimplemented==0.1.7
+# fine-tuning, fine-tuned decoding, get_weights.py
+torch==2.15.0
+transformers==5.23.0
+safetensors==0.8.0
+accelerate==1.15.0
