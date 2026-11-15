@@ -1,6 +1,6 @@
 # Verbatim: catching speech-to-text that silently translates bilingual speakers
 
-**Track:** Languages
+**Track:** Languages · **Demo video:** https://youtu.be/Uo6DG6jCHGo
 
 ## The problem
 Many bilingual people mix two languages in one sentence. Speech-to-text sometimes doesn't write down what they said. It writes a fluent translation instead. In one real clip, "那你有没有什么favourite foods" ("do you have any favorite foods?") came out of Whisper as **"That you have no favorite food?"**, a different sentence with the opposite meaning, that reads perfectly fine. As transcripts become records (AI-scribe visit notes, voicemails, captions), errors like this go unnoticed. About 27 million people in the US have limited English proficiency ([KFF](https://www.kff.org/racial-equity-and-health-policy/issue-brief/overview-of-health-coverage-and-care-for-individuals-with-limited-english-proficiency/)).
