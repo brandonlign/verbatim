@@ -7,7 +7,7 @@ Works on ASCEND run files (ref only) and ServiceNow run files (ref + per-word la
 """
 import argparse, json, math, re, sys
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
-from verbatim import check_v2, edit_rate, toks
+from verbatim import check_v2, edit_count, edit_rate, toks
 from taxonomy import classify as classify_zh
 
 CJK = re.compile(r"[一-鿿]")
@@ -55,8 +55,9 @@ def is_bad(r, hyp, primary):
     return classify(r, hyp, primary) != "ok_or_minor" or edit_rate(r["ref"], hyp) > 0.5
 
 def mer(recs, key):
-    e = sum(edit_rate(r["ref"], r[key]) * max(len(toks(r["ref"])), 1) for r in recs)
-    return e / sum(max(len(toks(r["ref"])), 1) for r in recs)
+    """Corpus MER: total edits / total reference tokens."""
+    c = [edit_count(r["ref"], r[key]) for r in recs]
+    return sum(e for e, _ in c) / sum(n for _, n in c)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("run"); ap.add_argument("th"); ap.add_argument("primary")

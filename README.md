@@ -28,27 +28,28 @@ Our own idea, closest to suggested project 4.4.3. We added our own question (tra
 - **Model:** [Whisper large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo).
   - Decoder fine-tuned with the encoder frozen: 800 steps × 8 clips, about 2.5 hours on an M3 laptop.
   - Cross-checks run with [mlx-whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper).
-- **Fair testing:** every threshold and model choice was made on validation and saved with a timestamp before the test set was scored once. An early pilot used 80 test clips before the method existed ([log](NOTES_INTEGRITY.md)).
+- **Fair testing:** every threshold and model choice was made on validation and saved with a timestamp before the test set was scored once. Two early looks at test data are logged: a pilot on 80 test clips before the method existed, and one printout of error rates by language group while designing v1 ([log](NOTES_INTEGRITY.md)).
 - **Measures:**
-  - Mixed error rate (MER) against reference transcripts.
+  - Mixed error rate (MER): total edits (substitutions, deletions, insertions) divided by total reference tokens, counting Chinese characters and English words.
   - Blind labels: a native Chinese reader labeled 347 transcripts in two rounds, with the systems shuffled and unnamed. Re-labeling 71 plain-Whisper lines matched the first round on 69.
 
 ## Results (ASCEND test, held out)
 | | Plain Whisper (baseline) | Verbatim |
 |---|---|---|
-| Mixed error rate, 369 clips | 19.4% | **12.0%** (38% fewer errors, CI 32–44%) |
+| Mixed error rate, 369 clips | 23.3% | **16.1%** (31% fewer errors, CI 21–42%) |
 | Lines fully correct, human-judged (70 random) | 26 (37%) | 28 (40%) |
 | Lines silently translated, human-judged (70 random) | 8 (11%) | 7 (10%) |
 | Human-confirmed translations no longer translated | — | 13 of 21 |
-| **Flags that pointed at a real error** | — | **25 of 28 (89%, CI 73–96%)** |
-| Real errors flagged | — | 25 of 64 (39%) |
+| **Flags that pointed at a real error (70 random)** | — | **11 of 11 (CI 74–100%)** |
+| Real errors flagged (70 random) | — | 11 of 42 (26%) |
+| Flags that pointed at a real error (all 99 labeled lines, including 29 picked as likely translations) | — | 25 of 28 (89%) |
 
-**What this means:** fine-tuning brings transcripts much closer to what was said. But a native speaker still found an error in most lines, from either system, because most fixed lines go from badly wrong to slightly wrong. So the flag matters: when Verbatim flags a line, it's almost always right to check it.
+**What this means:** fine-tuning brings transcripts much closer to what was said. But a native speaker still found an error in most lines, from either system, because most fixed lines go from badly wrong to slightly wrong. The flag is precise but quiet: when it flags a line, there is almost always an error, but it flags about a quarter of the errors.
 
 **By language** (MER, plain → Verbatim):
-- Mandarin–English real speech: 19.4% → 12.0%.
-- Mandarin–English synthetic: 6.6% → 7.5%.
-- Spanish–English synthetic: 6.4% → 5.9%. Verbatim fixed both of plain Whisper's Spanish→English translations, without fine-tuning.
+- Mandarin–English real speech: 23.3% → 16.1%.
+- Mandarin–English synthetic: 6.6% → 7.7%.
+- Spanish–English synthetic: 6.6% → 6.3%. Verbatim fixed both of plain Whisper's Spanish→English translations, without fine-tuning.
 
 **Clean synthetic speech hides the problem:** plain Whisper translated 0 of 294 synthetic Mandarin clips, but 8% of real ones.
 
@@ -56,13 +57,15 @@ Our own idea, closest to suggested project 4.4.3. We added our own question (tra
 - **Short phrases at language switches** still get translated. "就是hard choice" became "this is hard choice."
 - **Writing style.** On synthetic speech, the fine-tuned model writes numbers as Chinese characters ("ID七四零五六一七"), so its score is worse even though the meaning is right.
 - **When every version makes the same mistake,** nothing is flagged. "使用这个function的时候" became "使用这个方向的时候" everywhere.
+- **A bug in the broken-decode check.** On one clip plain Whisper looped ("go go go…" 223 times). The fine-tuned decode was then marked "nearly empty" next to the loop, every decode counted as broken, and v3 kept the loop. The line was flagged. That clip adds 4 points to both systems' MER; the fine-tuned decode alone scores 12.3%.
 - **Spanish flags** pointed at no real errors (0 of 11).
 
 More tables and examples are in [RESULTS.md](RESULTS.md).
 
 ## What we'd do next
-1. Fine-tune on a mix of real code-switched sources, including Spanish–English conversation, and train harder on short switch-point phrases.
-2. Test with real clinic conversations from bilingual patients, with their permission.
+1. Fix the broken-decode check so a looping decode can't make the others look empty.
+2. Fine-tune on a mix of real code-switched sources, including Spanish–English conversation, and train harder on short switch-point phrases.
+3. Test with real clinic conversations from bilingual patients, with their permission.
 
 ## Sources
 - **Datasets:**
@@ -79,6 +82,6 @@ More tables and examples are in [RESULTS.md](RESULTS.md).
   - Whisper on ASCEND, [arXiv 2510.18724](https://arxiv.org/abs/2510.18724).
 - **AI tools:** [Claude Code](https://claude.com/claude-code) (Anthropic) helped write code and analysis.
 
-How to run everything: [RESULTS.md#reproduce](RESULTS.md#reproduce).
+How to run everything: [RESULTS.md#reproduce](RESULTS.md#reproduce). Requirements: an Apple Silicon Mac, Python 3, and FFmpeg (for the demo's microphone audio). The fine-tuned weights (1.6 GB) are not in the repo; `scripts/finetune.py` rebuilds them in about 2.5 hours, and the demo runs without them using the regular Whisper decodes.
 
 The result files in `data/` include reference transcripts from ASCEND (CC BY-SA 4.0, shared under the same license) and ServiceNow asr_codeswitched. Audio and model weights are not included.

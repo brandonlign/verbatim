@@ -16,10 +16,10 @@ def load(p):
     return [json.loads(l) for l in open(p)]
 
 def corpus_mer(recs, key):
-    from verbatim import toks
-    errs = sum(edit_rate(r["ref"], r[key]) * max(len(toks(r["ref"])), 1) for r in recs)
-    n = sum(max(len(toks(r["ref"])), 1) for r in recs)
-    return errs / n
+    """Corpus MER: total edits / total reference tokens."""
+    from verbatim import edit_count
+    c = [edit_count(r["ref"], r[key]) for r in recs]
+    return sum(e for e, _ in c) / sum(n for _, n in c)
 
 def is_bad(ref, hyp):
     return classify(ref, hyp) in BAD or edit_rate(ref, hyp) > 0.5

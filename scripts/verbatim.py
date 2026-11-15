@@ -17,7 +17,19 @@ def toks(text):
     text = _t2s.convert(str(text or "").lower())
     return re.findall(rf"[{CJK}]|[a-z0-9'\u00e0-\u00ff]+", text)
 
+def edit_count(ref, hyp):
+    """(edits, reference tokens): substitutions + deletions + insertions. Used for reported MER."""
+    a, b = toks(ref), toks(hyp)
+    prev = list(range(len(b) + 1))
+    for i in range(1, len(a) + 1):
+        cur = [i] + [0] * len(b)
+        for j in range(1, len(b) + 1):
+            cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] != b[j - 1]))
+        prev = cur
+    return prev[len(b)], len(a)
+
 def edit_rate(a, b):
+    """Symmetric distance in [0, 1] (edits / longer length). Used only as a flag signal, not for reported MER."""
     a, b = toks(a), toks(b)
     if not a and not b:
         return 0.0

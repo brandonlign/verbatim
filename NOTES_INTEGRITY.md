@@ -46,3 +46,9 @@
 - Of 21 lines where plain Whisper translated (earlier labels), v3: 8 still translated, 4 correct, 7 mishearing, 2 hallucination.
 - v3 flag vs these labels: random 11/11 flags were real errors, recall 11/42; all 100: 25/28 precision, recall 25/64, 8/11 translations flagged.
 - Reading: token-level MER drops 38%, but line-level "fully correct" barely moves; most fixed lines go from badly wrong to slightly wrong.
+
+## 2026-11-15 00:45 — MER recomputed with the standard formula (reporting only)
+- An outside review pointed out that reported MER divided each line's edits by the longer of reference and output, then weighted by reference length. That caps the penalty for insertions (hallucinated or looping output).
+- Reported MER is now total edits / total reference tokens (scripts/mer_standard.py; score_v2.py and evaluate.py updated). The flag's internal disagreement signal is unchanged, so no transcript or flag changes.
+- Same frozen outputs, new MER. ASCEND test: auto 0.233, prompt_zh 0.256, prompt_en 0.372, v1 0.275, v2 0.213, v3 0.161 (fine-tuned decode alone 0.123). v3 vs auto: 7.2 points (bootstrap CI 5.6–8.8), 31% relative (CI 21–42%). Validation: auto 0.267, v2 0.212, ft 0.161, so the adoption decision is the same. ServiceNow zh: auto 0.066, v3 0.077; es: auto 0.066, v2 0.063.
+- The gap between v3 and ft alone is mostly one clip (00606): auto looped "go go go…" 223 times, the broken-decode check marked ft "nearly empty" relative to that loop, all decodes counted as broken, and v3 kept the loop (flagged). Not fixed in the frozen code, because the bug was found on the test set; listed as a failure and next step.
