@@ -1,0 +1,20 @@
+n = 369 mixed utterances; thresholds frozen at 2026-11-14T18:50:43-05:00
+
+Corpus mixed error rate:
+  auto       0.194
+  force_zh   0.192
+  prompt_zh  0.185
+  verbatim   0.187
+
+Failure types (automatic classifier):
+           dropped_en          dropped_zh       hallucination         ok_or_minor  translated_en_to_z  translated_zh_to_e
+  auto                       10                  5                  1                258                 66                 29
+  force_zh                   15                  0                  1                251                 96                  6
+  prompt_zh                  12                  3                  2                266                 81                  5
+  verbatim                   11                  3                  2                266                 80                  7
+
+Plain-Whisper silent translations (Chinese -> English): 29/369 = 7.9%  95% CI (np.float64(0.054), np.float64(0.106))
+  fixed by Verbatim's chosen transcript: 15/29
+  flagged by Verbatim: 29/29
+
+Detector on Verbatim's own output: recall 0.61, precision 0.57, flags 31% of lines  ({'tp': 66, 'fp': 49, 'fn': 42, 'tn': 212, 'recall': 0.6111111111111112, 'precision': 0.5739130434782609, 'flag_rate': 0.3116531165311653})

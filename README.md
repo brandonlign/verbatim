@@ -1,0 +1,84 @@
+# Verbatim: catching speech-to-text that silently translates bilingual speakers
+
+**Track:** AI + Languages
+
+## The problem
+Many bilingual people mix two languages in one sentence. Speech-to-text sometimes doesn't write down what they said. It writes a fluent translation instead. In one real clip, "那你有没有什么favourite foods" ("do you have any favorite foods?") came out of Whisper as **"That you have no favorite food?"**, a different sentence with the opposite meaning, that reads perfectly fine. As transcripts become records (AI-scribe visit notes, voicemails, captions), errors like this go unnoticed. About 27 million people in the US have limited English proficiency ([KFF](https://www.kff.org/racial-equity-and-health-policy/issue-brief/overview-of-health-coverage-and-care-for-individuals-with-limited-english-proficiency/)).
+
+## What we built
+**For:** a scribe, clinician or family member reading a transcript of a bilingual speaker, who needs to know which lines to check against the audio.
+
+**In:** audio of mixed Mandarin–English (or Spanish–English) speech. **Out:** a transcript that keeps the speaker's mix of languages, with a flag and reasons on lines to re-check.
+
+1. **Fine-tuned transcriber.** Whisper's decoder, trained on 8,387 real code-switched Mandarin–English clips.
+2. **Cross-checks.** Regular Whisper decodes the same clip three ways: auto-detect, Mandarin forced + mixed-language prompt, and English forced + mixed-language prompt.
+3. **Choose and flag.** Broken versions are dropped (loops, impossible word rate, wrong script, empty output), and the most confident version is kept. The line is flagged when the model is unsure, when the versions disagree, or when a third language is detected.
+4. **Demo:** speak a sentence and see plain Whisper next to Verbatim (`demo/`).
+
+## What we added
+Our own idea, closest to suggested project 4.4.3. We added our own question (translation instead of transcription), a blind hand-labeled answer key by a native Chinese reader on our team, a fine-tuned fix plus a review flag, and a second unseen dataset with a second language pair.
+
+## How it works
+- **Data:** [ASCEND](https://huggingface.co/datasets/CAiRE/ASCEND), real Mandarin–English conversation (CC BY-SA 4.0).
+  - Train: 8,387 clips.
+  - Validation: 210 mixed clips.
+  - Test: 369 mixed clips.
+  - Speakers are different in each split.
+- **Unseen second test:** [ServiceNow asr_codeswitched](https://huggingface.co/datasets/ServiceNow-AI/asr_codeswitched), synthetic speech: 294 Mandarin–English and 259 Spanish–English clips.
+- **Model:** [Whisper large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo).
+  - Decoder fine-tuned with the encoder frozen: 800 steps × 8 clips, about 2.5 hours on an M3 laptop.
+  - Cross-checks run with [mlx-whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper).
+- **Fair testing:** every threshold and model choice was made on validation and saved with a timestamp before the test set was scored once. An early pilot used 80 test clips before the method existed ([log](NOTES_INTEGRITY.md)).
+- **Measures:**
+  - Mixed error rate (MER) against reference transcripts.
+  - Blind labels: a native Chinese reader labeled 347 transcripts in two rounds, with the systems shuffled and unnamed. Re-labeling 71 plain-Whisper lines matched the first round on 69.
+
+## Results (ASCEND test, held out)
+| | Plain Whisper (baseline) | Verbatim |
+|---|---|---|
+| Mixed error rate, 369 clips | 19.4% | **12.0%** (38% fewer errors, CI 32–44%) |
+| Lines fully correct, human-judged (70 random) | 26 (37%) | 28 (40%) |
+| Lines silently translated, human-judged (70 random) | 8 (11%) | 7 (10%) |
+| Human-confirmed translations no longer translated | — | 13 of 21 |
+| **Flags that pointed at a real error** | — | **25 of 28 (89%, CI 73–96%)** |
+| Real errors flagged | — | 25 of 64 (39%) |
+
+**What this means:** fine-tuning brings transcripts much closer to what was said. But a native speaker still found an error in most lines, from either system, because most fixed lines go from badly wrong to slightly wrong. So the flag matters: when Verbatim flags a line, it's almost always right to check it.
+
+**By language** (MER, plain → Verbatim):
+- Mandarin–English real speech: 19.4% → 12.0%.
+- Mandarin–English synthetic: 6.6% → 7.5%.
+- Spanish–English synthetic: 6.4% → 5.9%. Verbatim fixed both of plain Whisper's Spanish→English translations, without fine-tuning.
+
+**Clean synthetic speech hides the problem:** plain Whisper translated 0 of 294 synthetic Mandarin clips, but 8% of real ones.
+
+**Where it fails:**
+- **Short phrases at language switches** still get translated. "就是hard choice" became "this is hard choice."
+- **Writing style.** On synthetic speech, the fine-tuned model writes numbers as Chinese characters ("ID七四零五六一七"), so its score is worse even though the meaning is right.
+- **When every version makes the same mistake,** nothing is flagged. "使用这个function的时候" became "使用这个方向的时候" everywhere.
+- **Spanish flags** pointed at no real errors (0 of 11).
+
+More tables and examples are in [RESULTS.md](RESULTS.md).
+
+## What we'd do next
+1. Fine-tune on a mix of real code-switched sources, including Spanish–English conversation, and train harder on short switch-point phrases.
+2. Test with real clinic conversations from bilingual patients, with their permission.
+
+## Sources
+- **Datasets:**
+  - ASCEND, Lovenia et al. 2022 ([paper](https://arxiv.org/abs/2112.06223), [data](https://huggingface.co/datasets/CAiRE/ASCEND)).
+  - ServiceNow-AI [asr_codeswitched](https://huggingface.co/datasets/ServiceNow-AI/asr_codeswitched).
+- **Models and libraries:**
+  - OpenAI [Whisper large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo) and its [mlx-community conversion](https://huggingface.co/mlx-community/whisper-large-v3-turbo).
+  - [mlx-whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper).
+  - Hugging Face [Transformers](https://github.com/huggingface/transformers) and [PyTorch](https://pytorch.org).
+  - [OpenCC](https://github.com/yichen0831/opencc-python), pandas, soundfile, soxr.
+- **Prior work:**
+  - ServiceNow AI, [code-switching ASR benchmark](https://huggingface.co/blog/ServiceNow-AI/code-switching) (2026).
+  - Peng et al. 2023, [prompting Whisper](https://arxiv.org/abs/2305.11095).
+  - Whisper on ASCEND, [arXiv 2510.18724](https://arxiv.org/abs/2510.18724).
+- **AI tools:** [Claude Code](https://claude.com/claude-code) (Anthropic) helped write code and analysis.
+
+How to run everything: [RESULTS.md#reproduce](RESULTS.md#reproduce).
+
+The result files in `data/` include reference transcripts from ASCEND (CC BY-SA 4.0, shared under the same license) and ServiceNow asr_codeswitched. Audio and model weights are not included.

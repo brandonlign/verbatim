@@ -1,0 +1,19 @@
+.venv/
+.venv-train/
+models/
+data/*.parquet
+data/ascend_train/
+data/servicenow/*.parquet
+recordings/*.m4a
+recordings/*.wav
+__pycache__/
+*.log
+
+# private prep notes (not part of the public repo)
+QA_PREP.md
+SUBMISSION.md
+VIDEO_SCRIPT.md
+RECORDING_SCRIPT.md
+WRITEUP_DRAFT.md
+PROJECT_SPEC.md
+.claude/

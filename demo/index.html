@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verbatim</title>
+<style>
+:root{--bg:#fafaf7;--fg:#1c1c1a;--muted:#6b6b66;--line:#e2e1db;--card:#fff;--warn:#b54708;--warnbg:#fff4e5;--ok:#1f7a4d;--okbg:#ecf7f0;--accent:#1c1c1a}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ecebe6;--muted:#9b9a94;--line:#2e2e2b;--card:#1e1e1c;--warn:#f5a25d;--warnbg:#3a2614;--ok:#6fd3a0;--okbg:#14301f;--accent:#ecebe6}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"PingFang SC","Segoe UI",sans-serif}
+main{max-width:980px;margin:0 auto;padding:40px 16px 64px}
+h1{font-size:28px;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 28px;max-width:640px}
+.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
+select,button{font:inherit;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:10px 14px}
+button.rec{background:var(--accent);color:var(--bg);border-color:var(--accent);min-width:150px}
+button.rec.on{background:#c0362c;border-color:#c0362c;color:#fff}
+.status{color:var(--muted);font-size:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:700px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;min-height:150px}
+.label{font-size:13px;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;gap:8px}
+.text{font-size:20px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.flag{margin-top:12px;padding:10px 12px;border-radius:8px;font-size:14px}
+.flag.warn{background:var(--warnbg);color:var(--warn)}
+.flag.ok{background:var(--okbg);color:var(--ok)}
+h2{font-size:18px;margin:44px 0 12px}
+.ex{border-top:1px solid var(--line);padding:14px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;font-size:15px}
+@media (max-width:700px){.ex{grid-template-columns:1fr}}
+.ex .k{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
+.bad{color:var(--warn)}
+footer{margin-top:48px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Verbatim</h1>
+  <p class="sub">Speak a sentence that mixes languages. Plain speech-to-text sometimes writes a fluent translation of what you "probably" said. Verbatim keeps your words and flags lines worth checking against the audio.</p>
+
+  <div class="controls">
+    <select id="lang" aria-label="Language pair">
+      <option value="zh">中文 + English</option>
+      <option value="es">Español + English</option>
+    </select>
+    <button class="rec" id="rec">● Record</button>
+    <span class="status" id="status">Press Record, speak, press Stop.</span>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="label"><span>Plain Whisper (auto language)</span><span id="plang"></span></div>
+      <div class="text" id="plain">—</div>
+    </div>
+    <div class="panel">
+      <div class="label"><span>Verbatim</span></div>
+      <div class="text" id="verb">—</div>
+      <div id="flag"></div>
+    </div>
+  </div>
+
+  <h2>From the test set: real speakers, real failures</h2>
+  <div id="examples"><p class="status">Examples load after the test run.</p></div>
+
+  <footer>Speech data: ASCEND (CC BY-SA 4.0). Model: Whisper large-v3-turbo (fine-tuned decoder for Mandarin–English), run locally.</footer>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let mr = null, chunks = [];
+$('rec').onclick = async () => {
+  if (mr && mr.state === 'recording') { mr.stop(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+    chunks = []; mr = new MediaRecorder(stream);
+    mr.ondataavailable = e => chunks.push(e.data);
+    mr.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      $('rec').classList.remove('on'); $('rec').textContent = '● Record';
+      $('status').textContent = 'Transcribing…';
+      const blob = new Blob(chunks, {type: mr.mimeType});
+      try {
+        const r = await fetch('/transcribe?lang=' + $('lang').value, {method: 'POST', body: blob});
+        show(await r.json());
+        $('status').textContent = 'Done.';
+      } catch (e) { $('status').textContent = 'Something went wrong. Try again.'; }
+    };
+    mr.start(); $('rec').classList.add('on'); $('rec').textContent = '■ Stop';
+    $('status').textContent = 'Recording…';
+  } catch (e) { $('status').textContent = 'Microphone not available.'; }
+};
+function show(o) {
+  $('plain').textContent = o.plain || '(nothing)';
+  $('plang').textContent = o.plain_lang ? 'detected: ' + o.plain_lang : '';
+  $('verb').textContent = o.verbatim || '(nothing)';
+  $('flag').innerHTML = o.flagged
+    ? `<div class="flag warn">Check this line against the audio: ${o.reasons.join('; ')}.</div>`
+    : `<div class="flag ok">No warning signs.</div>`;
+}
+fetch('/examples.json').then(r => r.ok ? r.json() : []).then(xs => {
+  if (!xs.length) return;
+  $('examples').innerHTML = xs.map(x => `<div class="ex">
+    <div><span class="k">What was said</span>${esc(x.ref)}</div>
+    <div><span class="k">Plain Whisper</span><span class="bad">${esc(x.plain)}</span></div>
+    <div><span class="k">Verbatim${x.flagged ? ' · flagged for review' : ''}</span>${esc(x.verbatim)}${x.note ? `<span class="k" style="margin-top:6px">${esc(x.note)}</span>` : ''}</div></div>`).join('');
+});
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+</script>
+</body>
+</html>

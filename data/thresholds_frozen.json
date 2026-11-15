@@ -1,0 +1,16 @@
+{
+  "disagree": 0.2,
+  "rate": 5,
+  "logprob": -0.7,
+  "frozen_at": "2026-11-14T18:50:43-05:00",
+  "tuned_on": "asr_val.jsonl",
+  "validation_stats": {
+    "tp": 66,
+    "fp": 47,
+    "fn": 28,
+    "tn": 69,
+    "recall": 0.7021276595744681,
+    "precision": 0.584070796460177,
+    "flag_rate": 0.5380952380952381
+  }
+}

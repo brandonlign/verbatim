@@ -1,0 +1,11 @@
+# inference + evaluation (Apple Silicon)
+mlx-whisper
+pandas
+pyarrow
+soundfile
+soxr
+jiwer
+opencc-python-reimplemented
+# fine-tuning + fine-tuned decoding
+torch
+transformers

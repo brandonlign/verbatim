@@ -1,0 +1,22 @@
+{
+  "disagree": 0.8,
+  "rate": 7,
+  "logprob": -0.2,
+  "margin": 0.15,
+  "frozen_at": "2026-11-14T23:17:20-05:00",
+  "tuned_on": "asr_val_ft.jsonl",
+  "cands": [
+    "ft",
+    "prompt_zh",
+    "auto",
+    "prompt_en"
+  ],
+  "validation_stats": {
+    "tp": 37,
+    "fp": 43,
+    "fn": 20,
+    "precision": 0.4625,
+    "recall": 0.6491228070175439,
+    "flag_rate": 0.38095238095238093
+  }
+}
