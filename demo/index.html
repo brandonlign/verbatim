@@ -173,7 +173,8 @@ mark{background:none;color:inherit;text-decoration:underline dotted var(--flag-s
 .clip-v{font-size:17px;line-height:1.5;overflow-wrap:anywhere}
 .clip-said .clip-v{font-family:var(--serif);font-size:20px;line-height:1.35}
 .clip-wrong .clip-v{color:var(--flag);text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--flag) 45%,transparent);text-decoration-thickness:1.5px}
-.clip-note{grid-column:2;display:flex;flex-wrap:wrap;gap:6px}
+.clip-note{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.clip-note .badge{white-space:normal;line-height:1.4;padding:4px 10px}
 .clip-run{align-self:center}
 
 /* Stats */
@@ -236,7 +237,6 @@ mark{background:none;color:inherit;text-decoration:underline dotted var(--flag-s
   .clip-body{grid-column:1/-1;grid-row:2}
   .clip-run{grid-column:2;grid-row:1;justify-self:end}
   .clip-line{grid-template-columns:1fr;gap:2px}
-  .clip-note{grid-column:1/-1}
   .stats{gap:8px}.stat{padding:16px}.stat-note{font-size:11.5px}
   .limits details p{padding-right:0}
 }
