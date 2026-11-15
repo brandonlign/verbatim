@@ -57,3 +57,29 @@
 - Fix: the "nearly empty" comparison is skipped when the auto decode itself looks broken. No thresholds changed.
 - Effect, checked on every set: validation 0 lines changed, ServiceNow zh 0, ServiceNow es 0, ASCEND test 1 line (00606, still flagged). 00606 is not in either human-labeled set, so the human-label results are unchanged.
 - ASCEND test after the fix: v2 0.175, v3 0.123. v3 vs auto: 10.9 points (bootstrap CI 6.0–19.9), 47% relative (CI 33–62%). Before the fix: v2 0.213, v3 0.161 (31%).
+
+## 2026-11-15 01:02 — v4 plan (written before any new decode exists)
+- Scope: the transcript stays the frozen v3 transcript. v4 changes only the flag, so the blind human labels on v3 transcripts (data/labels_v3.jsonl) stay valid as the answer key.
+- Disclosure: at ~00:58 an exploratory logistic model (11 features from the saved decodes, fit on validation) was scored against test references to see whether a learned flag had headroom. It ranked lines with 20%+ of tokens wrong at AUC 0.83 on test. That look motivated v4; no v4 feature set, model or threshold was chosen from it, and human labels were not used.
+- New decodes (validation first, then test): the fine-tuned decode again with per-token log-probabilities saved (scripts/run_ft.py --tokens; text must match the frozen decode), and Whisper's explicit translate-task output (scripts/run_translate.py).
+- v4 flag: one logistic risk score fit on VALIDATION ONLY. Target: the v3 transcript has 20% or more of its reference tokens wrong. Feature groups: (a) the v3 signals (disagreement with each cross-check, mean log-prob, rate, duration, auto-detected language), (b) token confidence (lowest token log-prob, share of low-confidence tokens), (c) translate-match (overlap between the transcript's English words and the translate-task output that the Mandarin-forced decode does not share).
+- Selection rule: groups (b) and (c) are each kept only if they raise leave-one-out AUC on validation. The threshold is the validation F1 optimum, the same criterion as v3. Then freeze with a timestamp and score ASCEND test once: against references on all 369 lines and against the human labels.
+- Adoption rule: v4 replaces the v3 flag in the write-up only if, on the 70 random human-labeled lines, it flags more real errors than v3 (11) at precision of at least 85%. Otherwise it is reported as tried and not adopted.
+- Single-language speech: ASCEND validation and test clips labeled zh or en (at least 1 s; validation 719, test 584) are decoded with plain Whisper and the full v3 system. Validation is read first. If v3 is worse than plain Whisper on validation single-language MER, a gate is designed on validation; otherwise test is scored once as-is.
+
+## 2026-11-15 01:08 — translate-match signal dropped before fitting
+- Whisper large-v3-turbo does not translate when given the translate task: on the first 30 validation clips it returned a Mandarin transcript (e.g. "smart phone越来越普及了" -> "Smartphone越来越普及了。"). The signal carries nothing with this model, so feature group (c) is removed and the test set is not decoded this way. The partial validation output was discarded. Groups (a) and (b) proceed as planned.
+
+## 2026-11-15 01:21 — v4 scored once on ASCEND test (model frozen 01:08:46 on validation)
+- Validation fit (scripts/tune_v4.py): leave-one-out AUC 0.870 with the v3 signals; adding token-confidence features gave 0.869, so they were not kept. Threshold 0.361 (validation precision 0.75, recall 0.80). Word-mark cut-off: token log-prob below -0.60 (validation: 62% of marked words wrong, 48% of wrong words marked).
+- The re-decode with token log-probs reproduced the frozen fine-tuned text on 210/210 validation and 369/369 test clips.
+- Test, against references (369 lines, 103 with 20%+ tokens wrong): v3 flag 22% of lines, catches 54/103; v4 flag 29% of lines, catches 65/103. Risk score AUC 0.824.
+- Test, human labels, 70 random lines: v3 11/11 flags real errors, 11/42 errors, 4/7 translations. v4 12/15 (80%), 12/42 errors, 6/7 translations. All 99 labeled: v3 25/28, 25/64, 8/11; v4 30/37, 30/64, 10/11.
+- **Decision by the rule written at the top of the v4 plan: v4 is NOT adopted** (precision 80% is under the 85% bar). The v3 flag stays the reported flag. v4 is reported as tried.
+- Word marks (new output, no earlier version to replace): on test, 196 of 347 marked words were wrong (56%, CI 51-62%) against 529 wrong words among 5,470 (9.7%); 37% of wrong words were marked. Full printout: data/test_v4_report.txt.
+
+## 2026-11-15 08:58 — Single-language speech scored (frozen v3, no changes)
+- Validation read first (719 clips): Mandarin 14.7% -> 10.4%, English 27.0% -> 22.1%. v3 is better on both, so by the rule in the v4 plan no gate was designed.
+- Test scored once (584 clips): Mandarin (414) 15.2% -> 10.0%, English (170) 26.0% -> 21.3%. All test speech (953 clips, with the 369 mixed): 20.4% -> 12.4% (CI of the difference 5.4-12.3 points). Printout: data/mono_report.txt.
+- v3 flag rate: Mandarin 15%, English 44% (75 lines; 60 with at least one error against the reference).
+- Intermediate files mono_*_a/_b.jsonl are decode stages; mono_validation.jsonl and mono_test.jsonl are the complete run files.

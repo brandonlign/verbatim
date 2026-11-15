@@ -8,7 +8,7 @@ import numpy as np, soundfile as sf, mlx_whisper
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "scripts"))
-from verbatim import check_v2  # noqa: E402
+from verbatim import check_v2, pieces_from_ids, token_units  # noqa: E402
 
 MODEL = "mlx-community/whisper-large-v3-turbo"
 PROMPTS = {
@@ -21,6 +21,8 @@ PROMPT_EN = {
 }
 TH = json.load(open(os.path.join(HERE, "..", "data", "thresholds_v2_frozen.json")))
 TH3 = json.load(open(os.path.join(HERE, "..", "data", "thresholds_v3_frozen.json")))
+V4_PATH = os.path.join(HERE, "..", "data", "thresholds_v4_frozen.json")
+V4 = json.load(open(V4_PATH)) if os.path.exists(V4_PATH) else None  # holds the frozen word-mark cut-off
 FT = None  # fine-tuned Mandarin-English model, loaded at startup if --ft is given
 
 def decode(audio, **kw):
@@ -36,12 +38,21 @@ def run(audio, primary):
                     ("prompt_en", dict(language="en", initial_prompt=PROMPT_EN[primary]))]:
         d = decode(audio, **kw)
         rec[key], rec[key + "_lang"], rec[key + "_avg_logprob"], rec[key + "_compression"] = d["text"], d["lang"], d["logprob"], d["compression"]
+    out = dict(plain=rec["auto"], plain_lang=rec["auto_lang"])
     if FT is not None and primary == "zh":
-        (rec["ft"],), (rec["ft_avg_logprob"],) = FT.transcribe([audio])
+        (rec["ft"],), (rec["ft_avg_logprob"],), (toks_lp,) = FT.transcribe([audio], tokens=True)
+        rec["ft_pieces"] = pieces_from_ids(toks_lp, FT.proc.tokenizer)
         chosen, flagged, reasons, key = check_v2(rec, TH3, primary=primary, cands=TH3["cands"])
+        if key == "ft":  # word marks: spans of the transcript whose token log-prob is under the frozen cut-off
+            cut = V4["word_logprob"] if V4 else -1.0
+            text, units = token_units(rec["ft_pieces"])
+            out["text"] = text; out["marks"] = [[a, b] for _, lp, a, b in units if lp < cut]
     else:
         chosen, flagged, reasons, key = check_v2(rec, TH, primary=primary)
-    return dict(plain=rec["auto"], plain_lang=rec["auto_lang"], verbatim=chosen, flagged=flagged, reasons=reasons, chosen_decode=key)
+    out.update(verbatim=out.get("text", chosen).strip() if key == "ft" else chosen, flagged=flagged, reasons=reasons, chosen_decode=key)
+    if "text" in out:  # marks index into the unstripped text
+        lead = len(out["text"]) - len(out["text"].lstrip()); out["marks"] = [[a - lead, b - lead] for a, b in out["marks"]]; del out["text"]
+    return out
 
 class H(BaseHTTPRequestHandler):
     def log_message(self, *x): pass
@@ -58,6 +69,15 @@ class H(BaseHTTPRequestHandler):
             p = os.path.join(HERE, fn)
             if os.path.exists(p):
                 return self.send(200, open(p, "rb").read(), ct)
+        if path.startswith("/audio/") and path.endswith(".wav"):
+            p = os.path.join(HERE, "audio", os.path.basename(path))
+            if os.path.exists(p):
+                return self.send(200, open(p, "rb").read(), "audio/wav")
+        if path.startswith("/example/"):  # run the whole pipeline live on a stored test-set clip
+            p = os.path.join(HERE, "audio", os.path.basename(path) + ".wav")
+            if os.path.exists(p):
+                audio, _ = sf.read(p, dtype="float32")
+                return self.send(200, json.dumps(run(audio.astype(np.float32), "zh"), ensure_ascii=False), "application/json")
         self.send(404, "not found", "text/plain")
     def do_POST(self):
         if not self.path.startswith("/transcribe"):

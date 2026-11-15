@@ -26,10 +26,15 @@ button.rec.on{background:#c0362c;border-color:#c0362c;color:#fff}
 .flag.warn{background:var(--warnbg);color:var(--warn)}
 .flag.ok{background:var(--okbg);color:var(--ok)}
 h2{font-size:18px;margin:44px 0 12px}
-.ex{border-top:1px solid var(--line);padding:14px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;font-size:15px}
+.ex{border-top:1px solid var(--line);padding:14px 0;display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:14px;font-size:15px}
 @media (max-width:700px){.ex{grid-template-columns:1fr}}
 .ex .k{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
 .bad{color:var(--warn)}
+mark{background:none;color:inherit;border-bottom:2px dotted var(--warn);padding-bottom:1px}
+.legend{font-size:12px;color:var(--muted);margin-top:6px}
+.ex{align-items:start}
+.ex button{padding:4px 10px;font-size:13px;margin-right:6px;cursor:pointer}
+.ex.active{background:var(--card);margin:0 -10px;padding:14px 10px;border-radius:8px}
 footer{margin-top:48px;color:var(--muted);font-size:13px}
 </style>
 </head>
@@ -55,11 +60,14 @@ footer{margin-top:48px;color:var(--muted);font-size:13px}
     <div class="panel">
       <div class="label"><span>Verbatim</span></div>
       <div class="text" id="verb">—</div>
+      <div id="meter"></div>
       <div id="flag"></div>
     </div>
   </div>
 
+  <audio id="player" hidden></audio>
   <h2>From the test set: real speakers, real failures</h2>
+  <p class="status" style="margin:-6px 0 10px">Press ▶ to hear a clip. Press Run to send it through both systems live.</p>
   <div id="examples"><p class="status">Examples load after the test run.</p></div>
 
   <footer>Speech data: ASCEND (CC BY-SA 4.0). Model: Whisper large-v3-turbo (fine-tuned decoder for Mandarin–English), run locally.</footer>
@@ -88,17 +96,31 @@ $('rec').onclick = async () => {
     $('status').textContent = 'Recording…';
   } catch (e) { $('status').textContent = 'Microphone not available.'; }
 };
+function marked(text, marks) {
+  let out = '', at = 0;
+  for (const [a, b] of marks || []) { if (a < at) continue; out += esc(text.slice(at, a)) + '<mark>' + esc(text.slice(a, b)) + '</mark>'; at = b; }
+  return out + esc(text.slice(at));
+}
 function show(o) {
   $('plain').textContent = o.plain || '(nothing)';
   $('plang').textContent = o.plain_lang ? 'detected: ' + o.plain_lang : '';
-  $('verb').textContent = o.verbatim || '(nothing)';
+  $('verb').innerHTML = o.verbatim ? marked(o.verbatim, o.marks) : '(nothing)';
+  $('meter').innerHTML = (o.marks || []).length ? '<div class="legend">Dotted underline: words the model was unsure of.</div>' : '';
   $('flag').innerHTML = o.flagged
-    ? `<div class="flag warn">Check this line against the audio: ${o.reasons.join('; ')}.</div>`
+    ? `<div class="flag warn">Check this line against the audio${o.reasons.length ? ': ' + esc(o.reasons.join('; ')) : ''}.</div>`
     : `<div class="flag ok">No warning signs.</div>`;
+}
+function play(id) { const p = $('player'); p.src = '/audio/' + id + '.wav'; p.play(); }
+async function runExample(id, row) {
+  document.querySelectorAll('.ex.active').forEach(e => e.classList.remove('active')); row.classList.add('active');
+  play(id); $('status').textContent = 'Transcribing the clip…';
+  try { show(await (await fetch('/example/' + id)).json()); $('status').textContent = 'Done. Both panels show a live run on this clip.'; window.scrollTo({top: 0, behavior: 'smooth'}); }
+  catch (e) { $('status').textContent = 'Something went wrong. Try again.'; }
 }
 fetch('/examples.json').then(r => r.ok ? r.json() : []).then(xs => {
   if (!xs.length) return;
   $('examples').innerHTML = xs.map(x => `<div class="ex">
+    <div>${x.id ? `<button aria-label="Play clip" onclick="play('${esc(x.id)}')">▶</button><button onclick="runExample('${esc(x.id)}', this.closest('.ex'))">Run</button>` : ''}</div>
     <div><span class="k">What was said</span>${esc(x.ref)}</div>
     <div><span class="k">Plain Whisper</span><span class="bad">${esc(x.plain)}</span></div>
     <div><span class="k">Verbatim${x.flagged ? ' · flagged for review' : ''}</span>${esc(x.verbatim)}${x.note ? `<span class="k" style="margin-top:6px">${esc(x.note)}</span>` : ''}</div></div>`).join('');

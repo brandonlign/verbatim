@@ -140,3 +140,89 @@ def check_v2(rec, th=DEFAULT_V2, primary="zh", cands=None):
     if sum(broken(rec, k) for k in cands if k in rec) >= 2:
         reasons.append("most decodes look broken")
     return chosen, bool(reasons), reasons, key
+
+
+# ---------------------------------------------------------------- v4: learned risk score + word-level marks
+import math
+
+def pieces_from_ids(id_lps, tokenizer):
+    """[[token id, log-prob]] -> [(text piece, log-prob)]. A character split across tokens takes the lowest log-prob."""
+    out, ids, prev, carry = [], [], "", 0.0
+    for i, lp in id_lps:
+        ids.append(i)
+        cur = tokenizer.decode(ids, skip_special_tokens=True)
+        carry = min(carry, lp)
+        if cur.endswith("�") or len(cur) <= len(prev):
+            continue  # incomplete character: wait for the next token
+        out.append((cur[len(prev):], carry)); prev, carry = cur, 0.0
+    return out
+
+def token_units(pieces):
+    """[(text piece, log-prob)] -> (text, [(unit, lowest log-prob, start, end)]) with units as in toks()."""
+    text = "".join(p for p, _ in pieces)
+    lps = [l for p, l in pieces for _ in p]
+    norm = _t2s.convert(text.lower())
+    if len(norm) != len(text):
+        norm = text.lower() if len(text.lower()) == len(text) else text
+    units = [(m.group(), min(lps[m.start():m.end()]), m.start(), m.end())
+             for m in re.finditer(rf"[{CJK}]|[a-z0-9'à-ÿ]+", norm)]
+    return text, units
+
+def wrong_units(ref, hyp_units):
+    """For each transcript unit: True if it is a substitution or insertion against the reference."""
+    a, b = toks(ref), list(hyp_units)
+    n, m = len(a), len(b)
+    D = [[0] * (m + 1) for _ in range(n + 1)]
+    for i in range(n + 1): D[i][0] = i
+    for j in range(m + 1): D[0][j] = j
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            D[i][j] = min(D[i - 1][j] + 1, D[i][j - 1] + 1, D[i - 1][j - 1] + (a[i - 1] != b[j - 1]))
+    wrong, i, j = [False] * m, n, m
+    while j > 0:
+        if i > 0 and D[i][j] == D[i - 1][j - 1] + (a[i - 1] != b[j - 1]):
+            wrong[j - 1] = a[i - 1] != b[j - 1]; i -= 1; j -= 1
+        elif D[i][j] == D[i][j - 1] + 1:
+            wrong[j - 1] = True; j -= 1
+        else:
+            i -= 1
+    return wrong
+
+_EN = re.compile(r"[a-z]")
+FEATURE_GROUPS = dict(
+    base=["dis_zh", "dis_auto", "dis_en", "logprob", "rate", "logdur", "auto_en", "logn"],
+    token=["min_tok", "low_share"],
+    translate=["tr_match", "tr_sim"],
+)
+
+def v4_features(rec, chosen, key, primary="zh"):
+    """Signals for the v4 risk score. `rec['ft_pieces']` (token pieces of the fine-tuned decode) is optional."""
+    p = f"prompt_{primary}"
+    dur = max(rec.get("dur", 1.0), 0.3)
+    t = toks(chosen)
+    lp = rec.get(key + "_avg_logprob")
+    lp = -1.0 if lp is None else lp
+    f = dict(dis_zh=edit_rate(chosen, rec.get(p, "")), dis_auto=edit_rate(chosen, rec.get("auto", "")),
+             dis_en=edit_rate(chosen, rec.get("prompt_en", "")), logprob=lp, rate=len(t) / dur, logdur=math.log(dur),
+             auto_en=float(rec.get("auto_lang") == "en"), logn=math.log1p(len(t)))
+    if key == "ft" and rec.get("ft_pieces"):
+        u = token_units(rec["ft_pieces"])[1]
+        f["min_tok"] = min([x[1] for x in u] or [lp]); f["low_share"] = sum(x[1] < -1.0 for x in u) / max(1, len(u))
+    else:
+        f["min_tok"], f["low_share"] = lp, 0.0
+    tr = rec.get("translate")
+    if tr is None:
+        f["tr_match"], f["tr_sim"] = 0.0, 0.0
+    else:
+        trs, zen = set(toks(tr)), {w for w in toks(rec.get(p, "")) if _EN.match(w)}
+        f["tr_match"] = sum(1 for w in t if _EN.match(w) and w not in zen and w in trs) / max(1, len(t))
+        f["tr_sim"] = 1.0 - edit_rate(chosen, tr)
+    return f
+
+def risk_v4(rec, model, primary="zh"):
+    """(transcript, risk in [0,1], flagged, chosen decode). `model` is the frozen v4 JSON."""
+    chosen, _, _, key = check_v2(rec, model["v3"], primary=primary, cands=model["v3"]["cands"])
+    f = v4_features(rec, chosen, key, primary)
+    z = model["bias"] + sum(w * (f[n] - mu) / sd for n, w, mu, sd in zip(model["features"], model["weights"], model["mean"], model["std"]))
+    risk = 1 / (1 + math.exp(-z))
+    return chosen, risk, risk >= model["threshold"], key

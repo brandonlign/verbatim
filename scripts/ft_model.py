@@ -12,7 +12,8 @@ class FineTuned:
         self.eot = tok.eos_token_id
 
     @torch.no_grad()
-    def transcribe(self, audios, max_new=200):
+    def transcribe(self, audios, max_new=200, tokens=False):
+        """-> (texts, mean log-probs); with tokens=True also [[token id, log-prob]] per clip."""
         feats = self.proc.feature_extractor([np.asarray(a, dtype=np.float32) for a in audios], sampling_rate=16000,
                                             return_tensors="pt").input_features.to(self.dev).half()
         m = self.model.model
@@ -34,4 +35,7 @@ class FineTuned:
             if all(done): break
             step_in = torch.tensor(nxt, device=self.dev)[:, None]
         texts = self.proc.tokenizer.batch_decode(out, skip_special_tokens=True)
-        return [t.strip() for t in texts], [sum(x) / len(x) if x else None for x in lp]
+        means = [sum(x) / len(x) if x else None for x in lp]
+        if tokens:
+            return [t.strip() for t in texts], means, [list(zip(o, l)) for o, l in zip(out, lp)]
+        return [t.strip() for t in texts], means

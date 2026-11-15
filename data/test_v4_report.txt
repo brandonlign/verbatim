@@ -1,0 +1,24 @@
+fine-tuned text identical to the frozen decode: 369 of 369
+
+asr_test_v4.jsonl: 369 lines, model frozen 2026-11-15T01:08:46-05:00
+Against references: 103 lines have 20%+ tokens wrong; risk score AUC 0.824
+  v3 flag: flags 22% of lines | badly wrong lines caught 54/103 = 52% (CI 43%-62%) | flagged lines with any error 72/83 = 87% (CI 78%-92%) | share of all wrong tokens inside flagged lines 38%
+  v4 flag: flags 29% of lines | badly wrong lines caught 65/103 = 63% (CI 53%-72%) | flagged lines with any error 86/108 = 80% (CI 71%-86%) | share of all wrong tokens inside flagged lines 40%
+  If a reviewer checks the riskiest lines first:
+    top 10%: 31% of badly wrong lines, 18% of all wrong tokens
+    top 20%: 52% of badly wrong lines, 29% of all wrong tokens
+    top 30%: 63% of badly wrong lines, 40% of all wrong tokens
+    top 40%: 73% of badly wrong lines, 51% of all wrong tokens
+    top 50%: 85% of badly wrong lines, 64% of all wrong tokens
+Word marks (cut-off -0.6): 5470 words, 529 wrong; token log-prob AUC 0.875
+  marked words that are wrong 196/347 = 56% (CI 51%-62%) | wrong words marked 196/529 = 37% (CI 33%-41%) | marks 6.3% of words
+
+Human labels, random lines (70; 42 with an error, 7 translations)
+  v3 flag: flags that are real errors 11/11 = 100% (CI 74%-100%) | errors flagged 11/42 = 26% (CI 15%-41%) | translations flagged 4/7
+  v4 flag: flags that are real errors 12/15 = 80% (CI 55%-93%) | errors flagged 12/42 = 29% (CI 17%-44%) | translations flagged 6/7
+  risk score AUC against human 'has an error': 0.677
+
+Human labels, all labeled lines (99; 64 with an error, 11 translations)
+  v3 flag: flags that are real errors 25/28 = 89% (CI 73%-96%) | errors flagged 25/64 = 39% (CI 28%-51%) | translations flagged 8/11
+  v4 flag: flags that are real errors 30/37 = 81% (CI 66%-91%) | errors flagged 30/64 = 47% (CI 35%-59%) | translations flagged 10/11
+  risk score AUC against human 'has an error': 0.691

@@ -4,48 +4,55 @@
   "plain": "That you have no favorite food?",
   "verbatim": "那你有没有什么favorite food",
   "flagged": false,
-  "note": null
+  "note": null,
+  "id": "00190"
  },
  {
   "ref": "嗯yeah因为体积比较小",
   "plain": "Yeah, because the weight is very small.",
   "verbatim": "嗯yeah因为体力比较小",
   "flagged": false,
-  "note": null
+  "note": null,
+  "id": "00613"
  },
  {
   "ref": "我觉得python可能会用到一些 [UNK] neuralnetwork还有deep learning的东西",
   "plain": "Python can use some neural networks and deep learning.",
   "verbatim": "就python可能会用到一些nary neural network还有deep learning的东西",
   "flagged": true,
-  "note": null
+  "note": null,
+  "id": "01134"
  },
  {
   "ref": "那种关于呃着装啊还有关于那些关于interview skills的东西所以you need to have um to dress formal",
   "plain": "that's about the interview skills and stuff. So you need to have to dress formal.",
   "verbatim": "那种关于呃卓妆啊还有关于那些interview skiers的东西所以you need to have呃to dress for",
   "flagged": false,
-  "note": null
+  "note": null,
+  "id": "00968"
  },
  {
   "ref": "not what I expected in the beginning but just对最后就回到这里",
   "plain": "It's not what I expected in the beginning, but just, right, I'll just go back to this.",
   "verbatim": "it's not what i expected in the beginning but just对最后就回到这里",
   "flagged": false,
-  "note": null
+  "note": null,
+  "id": "00388"
  },
  {
   "ref": "然后它可能会record your personal life",
   "plain": "and then it will record your personal life",
   "verbatim": "然后他可能会record your personal life",
   "flagged": false,
-  "note": null
+  "note": null,
+  "id": "01213"
  },
  {
   "ref": "个人的personalities还有那个",
   "plain": "Go into personalities. Oh. I want to go.",
   "verbatim": "个人的personalities oh I want to go",
   "flagged": true,
-  "note": "failure: Verbatim kept the Chinese but invented an English ending; it flagged the line"
+  "note": "failure: Verbatim kept the Chinese but invented an English ending; it flagged the line",
+  "id": "00891"
  }
 ]

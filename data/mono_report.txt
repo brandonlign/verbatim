@@ -1,0 +1,14 @@
+--- VALIDATION ---
+mono_validation.jsonl: 719 single-language clips, thresholds frozen 2026-11-14T23:17:20-05:00
+  zh: n=504  MER plain 14.7% -> v3 10.4% (difference CI +3.5% to +5.2%) | wrong-language output: plain 9, v3 4 | v3 flags 15% | v3 chose ft on 496
+     by speaker: 7: 12.3% -> 8.9% (n=67); 12: 19.5% -> 13.9% (n=257); 20: 8.7% -> 5.8% (n=180)
+  en: n=215  MER plain 27.0% -> v3 22.1% (difference CI +2.6% to +7.1%) | wrong-language output: plain 0, v3 1 | v3 flags 49% | v3 chose ft on 210
+     by speaker: 7: 22.5% -> 14.8% (n=40); 12: 32.3% -> 27.1% (n=114); 20: 19.0% -> 17.1% (n=61)
+  all speech (mixed + single-language, n=929): MER plain 19.8% -> v3 13.6% (difference CI +5.2% to +7.2%)
+--- TEST ---
+mono_test.jsonl: 584 single-language clips, thresholds frozen 2026-11-14T23:17:20-05:00
+  zh: n=414  MER plain 15.2% -> v3 10.0% (difference CI +3.8% to +6.8%) | wrong-language output: plain 9, v3 3 | v3 flags 15% | v3 chose ft on 413
+     by speaker: 3: 13.7% -> 7.0% (n=164); 17: 16.0% -> 11.7% (n=250)
+  en: n=170  MER plain 26.0% -> v3 21.3% (difference CI +2.1% to +7.2%) | wrong-language output: plain 0, v3 0 | v3 flags 44% | v3 chose ft on 169
+     by speaker: 3: 21.6% -> 12.4% (n=18); 17: 26.4% -> 22.2% (n=152)
+  all speech (mixed + single-language, n=953): MER plain 20.4% -> v3 12.4% (difference CI +5.4% to +12.3%)

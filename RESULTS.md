@@ -10,6 +10,7 @@ One disclosure: before any method existed, a first pilot ran on 80 clips that ar
 | v1 | Mandarin forced + prompt, falls back to auto-detect if it comes back nearly empty | 2026-11-14 18:50 (validation) |
 | v2 | Most confident of 3 regular Whisper decodes, broken ones dropped | 2026-11-14 20:19 (validation) |
 | **v3 (final)** | **Fine-tuned decoder preferred, regular decodes as cross-checks** | **2026-11-14 23:17 (validation)** |
+| v4 (tried, flag not adopted) | Same transcript as v3. A learned risk score in place of the flag rules, plus word marks | 2026-11-15 01:08 (validation) |
 
 Fine-tuning was adopted by a rule written before any fine-tuned output was seen: adopt it only if it beats v2 on validation MER and doesn't raise translations. Validation MER: plain 26.7%, v2 21.2%, fine-tuned 16.1%.
 
@@ -51,6 +52,45 @@ Both rounds covered the same 71 random test lines plus 29 lines the automatic co
 - On all 369 test lines, v3 flags 22%.
 - **v1 flag, round 1 (on v1's transcript):** 42 of 50 flags were real errors (84%, CI 71–92%), and it caught 17 of 21 translations (81%, CI 60–92%). v1's transcript wasn't better than plain Whisper: 4 translations vs 7, but 10 hallucinations vs 6.
 
+### Single-language speech (ASCEND test, same two speakers, frozen v3, scored once)
+Clips labeled Mandarin-only or English-only, at least 1 second long. Validation was read first (Mandarin 14.7% → 10.4%, English 27.0% → 22.1%), so no gate was added.
+
+| Test clips | Plain Whisper MER | v3 MER | Difference (95% CI) | Written mostly in the other language (plain / v3) | v3 flag rate |
+|---|---|---|---|---|---|
+| Mandarin only (414) | 15.2% | **10.0%** | 3.8 to 6.8 points | 9 / 3 | 15% |
+| English only (170) | 26.0% | **21.3%** | 2.1 to 7.2 points | 0 / 0 | 44% |
+| All speech: mixed + single-language (953) | 20.4% | **12.4%** | 5.4 to 12.3 points | | |
+
+- Both speakers improved in both languages (Mandarin: 13.7% → 7.0% and 16.0% → 11.7%; English: 21.6% → 12.4% and 26.4% → 22.2%).
+- The flag is loud on English-only speech: 75 of 170 lines, 66 of them for low confidence. 60 of the 75 had at least one error against the reference.
+
+### Word marks (v3 transcript, all 369 test clips, against the reference)
+A word is underlined when its token log-probability is below −0.60. The cut-off was chosen on validation (62% of underlined words wrong there) and frozen before test.
+
+| | |
+|---|---|
+| Words in the fine-tuned transcripts | 5,470, of which 529 are wrong (9.7%) |
+| Underlined words | 347 (6.3% of words) |
+| Underlined words that were wrong | 196 of 347 (56%, CI 51–62%) |
+| Wrong words that were underlined | 196 of 529 (37%, CI 33–41%) |
+
+"Wrong" means a substitution or insertion in the edit-distance alignment with the reference. Token log-probability ranks wrong words above right ones 87.5% of the time (AUC 0.875).
+
+### v4: a learned flag, tried and not adopted
+The v3 flag is three hand-set thresholds. v4 replaces them with one logistic risk score over the same signals, fit on validation only to predict "20% or more of the tokens are wrong". The rule, written before any v4 output existed: adopt it only if it flags more real errors than v3 on the 70 random human-labeled lines at 85% precision or better.
+
+| ASCEND test | v3 flag | v4 flag |
+|---|---|---|
+| Lines flagged (369) | 22% | 29% |
+| Badly wrong lines flagged (103, against the reference) | 54 (52%) | 65 (63%) |
+| Flags that were real errors (70 random, human) | 11 of 11 | 12 of 15 (80%) |
+| Real errors flagged (70 random, human) | 11 of 42 | 12 of 42 |
+| Translations flagged (70 random / all 99, human) | 4 of 7 / 8 of 11 | 6 of 7 / 10 of 11 |
+
+v4 missed the precision bar, so the v3 flag stays. It did catch two more of the human-confirmed translations in each sample. Two planned signals were dropped along the way: token-confidence features did not improve the validation fit (0.869 vs 0.870 leave-one-out AUC), and Whisper's translate task returned Mandarin transcripts with this model, so "does the transcript match Whisper's own translation?" could not be tested.
+
+Sorting lines by the risk score gives a reading order: the riskiest 30% of lines hold 63% of the badly wrong lines, and the riskiest 50% hold 85%.
+
 ## ServiceNow asr_codeswitched (synthetic speech, never used for tuning)
 | Language pair | System | MER | English-word recall | Other-language-word recall | Translations into English |
 |---|---|---|---|---|---|
@@ -90,6 +130,16 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 # ServiceNow
 .venv/bin/python scripts/run_sn.py data/servicenow/en_es.parquet data/sn_es.jsonl es
 .venv/bin/python scripts/score_v2.py data/sn_es.jsonl data/thresholds_v2_frozen.json es
+# single-language clips (validation first, then test)
+.venv/bin/python scripts/run_asr.py data/ascend_test.parquet data/mono_test_a.jsonl --only-mono --skip force_zh
+.venv/bin/python scripts/add_decode.py data/ascend_test.parquet data/mono_test_a.jsonl data/mono_test_b.jsonl
+.venv/bin/python scripts/run_ft.py models/ft_decoder data/ascend_test.parquet data/mono_test_b.jsonl data/mono_test.jsonl --tokens
+.venv/bin/python scripts/score_mono.py data/mono_test.jsonl data/thresholds_v3_frozen.json data/asr_test_ft.jsonl
+# word marks and the v4 flag (tuned on validation, then test scored once)
+.venv/bin/python scripts/run_ft.py models/ft_decoder data/ascend_validation.parquet data/asr_val_ft.jsonl data/asr_val_v4.jsonl --tokens
+.venv/bin/python scripts/run_ft.py models/ft_decoder data/ascend_test.parquet data/asr_test_ft.jsonl data/asr_test_v4.jsonl --tokens
+.venv/bin/python scripts/tune_v4.py data/asr_val_v4.jsonl data/thresholds_v3_frozen.json models/ft_decoder data/thresholds_v4_frozen.json
+.venv/bin/python scripts/score_v4.py data/asr_test_v4.jsonl data/thresholds_v4_frozen.json models/ft_decoder --labels data/labels_v3.jsonl --frozen-run data/test_v3_scored.jsonl
 # demo at http://localhost:8780
 .venv/bin/python demo/server.py --ft models/ft_decoder
 ```

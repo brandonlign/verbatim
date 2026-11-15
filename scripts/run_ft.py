@@ -1,6 +1,6 @@
 """Decode a parquet (ASCEND or ServiceNow) with the fine-tuned model; merge into an existing run file as key 'ft'.
 
-usage: run_ft.py <model_dir> <parquet> <in.jsonl> <out.jsonl> [--lang zh]
+usage: run_ft.py <model_dir> <parquet> <in.jsonl> <out.jsonl> [--lang zh] [--tokens]
 """
 import argparse, io, json
 import numpy as np, pandas as pd, soundfile as sf, torch
@@ -9,6 +9,7 @@ from transformers import WhisperForConditionalGeneration, WhisperProcessor
 ap = argparse.ArgumentParser()
 ap.add_argument("model"); ap.add_argument("parquet"); ap.add_argument("inp"); ap.add_argument("out")
 ap.add_argument("--lang", default="zh"); ap.add_argument("--bs", type=int, default=8)
+ap.add_argument("--tokens", action="store_true", help="also save each output token with its log-probability (ft_tokens)")
 a = ap.parse_args()
 
 dev = torch.device("mps")
@@ -52,17 +53,19 @@ def greedy(feats, max_new=200):
         if done.all(): break
         step_in = nxt[:, None]
     texts = proc.tokenizer.batch_decode(out, skip_special_tokens=True)
-    return texts, [sum(x) / len(x) if x else None for x in lp]
+    return texts, [sum(x) / len(x) if x else None for x in lp], out, lp
 
 with open(a.out, "w") as f:
     for s in range(0, len(recs), a.bs):
         chunk = recs[s:s + a.bs]
         feats = proc.feature_extractor([load(audio_by_id[r["id"]]) for r in chunk], sampling_rate=16000,
                                        return_tensors="pt").input_features.to(dev).half()
-        texts, lps = greedy(feats)
-        for r, t, lp in zip(chunk, texts, lps):
+        texts, lps, toks_out, tok_lps = greedy(feats)
+        for r, t, lp, tk, tl in zip(chunk, texts, lps, toks_out, tok_lps):
             r["ft"] = t.strip()
             r["ft_avg_logprob"] = lp
             r["ft_compression"] = None
+            if a.tokens:
+                r["ft_tokens"] = [[i, round(x, 4)] for i, x in zip(tk, tl)]  # [token id, log-prob]
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
         f.flush(); print(s + len(chunk), flush=True)
