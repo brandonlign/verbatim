@@ -50,5 +50,10 @@
 ## 2026-11-15 00:45 — MER recomputed with the standard formula (reporting only)
 - An outside review pointed out that reported MER divided each line's edits by the longer of reference and output, then weighted by reference length. That caps the penalty for insertions (hallucinated or looping output).
 - Reported MER is now total edits / total reference tokens (scripts/mer_standard.py; score_v2.py and evaluate.py updated). The flag's internal disagreement signal is unchanged, so no transcript or flag changes.
-- Same frozen outputs, new MER. ASCEND test: auto 0.233, prompt_zh 0.256, prompt_en 0.372, v1 0.275, v2 0.213, v3 0.161 (fine-tuned decode alone 0.123). v3 vs auto: 7.2 points (bootstrap CI 5.6–8.8), 31% relative (CI 21–42%). Validation: auto 0.267, v2 0.212, ft 0.161, so the adoption decision is the same. ServiceNow zh: auto 0.066, v3 0.077; es: auto 0.066, v2 0.063.
-- The gap between v3 and ft alone is mostly one clip (00606): auto looped "go go go…" 223 times, the broken-decode check marked ft "nearly empty" relative to that loop, all decodes counted as broken, and v3 kept the loop (flagged). Not fixed in the frozen code, because the bug was found on the test set; listed as a failure and next step.
+- Same frozen outputs, new MER. ASCEND test: auto 0.233, prompt_zh 0.256, prompt_en 0.372, v1 0.275. Validation: auto 0.267, v2 0.212, ft 0.161, so the adoption decision is the same. ServiceNow zh: auto 0.066, v3 0.077; es: auto 0.066, v2 0.063.
+
+## 2026-11-15 01:00 — Bug fix in the broken-decode check (found on test clip 00606)
+- Plain Whisper looped "go go go…" 223 times on 00606. broken() judged every other decode "nearly empty" against that loop, so all decodes counted as broken and v3 kept the loop (flagged).
+- Fix: the "nearly empty" comparison is skipped when the auto decode itself looks broken. No thresholds changed.
+- Effect, checked on every set: validation 0 lines changed, ServiceNow zh 0, ServiceNow es 0, ASCEND test 1 line (00606, still flagged). 00606 is not in either human-labeled set, so the human-label results are unchanged.
+- ASCEND test after the fix: v2 0.175, v3 0.123. v3 vs auto: 10.9 points (bootstrap CI 6.0–19.9), 47% relative (CI 33–62%). Before the fix: v2 0.213, v3 0.161 (31%).

@@ -66,10 +66,17 @@ def repetition(text):
 def broken(rec, key):
     """Decode looks broken: loops, impossible word rate, wrong script, or (nearly) empty vs the auto decode."""
     t = rec.get(key, "") or ""
-    n, dur = len(toks(t)), max(rec.get("dur", 1.0), 0.3)
-    n_auto = len(toks(rec.get("auto", "")))
-    return (odd_script(t) or repetition(t) >= 3 or n / dur > 8
-            or (rec.get(key + "_compression") or 0) > 2.4 or (key != "auto" and n < 0.5 * n_auto))
+    dur = max(rec.get("dur", 1.0), 0.3)
+    def looks_broken(k):
+        s = rec.get(k, "") or ""
+        return (odd_script(s) or repetition(s) >= 3 or len(toks(s)) / dur > 8
+                or (rec.get(k + "_compression") or 0) > 2.4)
+    if looks_broken(key):
+        return True
+    # "nearly empty" is judged against the auto decode, but only when the auto decode isn't itself a loop
+    if key != "auto" and not looks_broken("auto"):
+        return len(toks(t)) < 0.5 * len(toks(rec.get("auto", "")))
+    return False
 
 def choose_v2(rec, candidates=("prompt_zh", "auto"), margin=0.15):
     """v2 transcript choice: drop broken decodes, then take the most confident one.

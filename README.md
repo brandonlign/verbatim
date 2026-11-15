@@ -36,7 +36,7 @@ Our own idea, closest to suggested project 4.4.3. We added our own question (tra
 ## Results (ASCEND test, held out)
 | | Plain Whisper (baseline) | Verbatim |
 |---|---|---|
-| Mixed error rate, 369 clips | 23.3% | **16.1%** (31% fewer errors, CI 21–42%) |
+| Mixed error rate, 369 clips | 23.3% | **12.3%** (47% fewer errors, CI 33–62%) |
 | Lines fully correct, human-judged (70 random) | 26 (37%) | 28 (40%) |
 | Lines silently translated, human-judged (70 random) | 8 (11%) | 7 (10%) |
 | Human-confirmed translations no longer translated | — | 13 of 21 |
@@ -47,7 +47,7 @@ Our own idea, closest to suggested project 4.4.3. We added our own question (tra
 **What this means:** fine-tuning brings transcripts much closer to what was said. But a native speaker still found an error in most lines, from either system, because most fixed lines go from badly wrong to slightly wrong. The flag is precise but quiet: when it flags a line, there is almost always an error, but it flags about a quarter of the errors.
 
 **By language** (MER, plain → Verbatim):
-- Mandarin–English real speech: 23.3% → 16.1%.
+- Mandarin–English real speech: 23.3% → 12.3%.
 - Mandarin–English synthetic: 6.6% → 7.7%.
 - Spanish–English synthetic: 6.6% → 6.3%. Verbatim fixed both of plain Whisper's Spanish→English translations, without fine-tuning.
 
@@ -57,15 +57,13 @@ Our own idea, closest to suggested project 4.4.3. We added our own question (tra
 - **Short phrases at language switches** still get translated. "就是hard choice" became "this is hard choice."
 - **Writing style.** On synthetic speech, the fine-tuned model writes numbers as Chinese characters ("ID七四零五六一七"), so its score is worse even though the meaning is right.
 - **When every version makes the same mistake,** nothing is flagged. "使用这个function的时候" became "使用这个方向的时候" everywhere.
-- **A bug in the broken-decode check.** On one clip plain Whisper looped ("go go go…" 223 times). The fine-tuned decode was then marked "nearly empty" next to the loop, every decode counted as broken, and v3 kept the loop. The line was flagged. That clip adds 4 points to both systems' MER; the fine-tuned decode alone scores 12.3%.
 - **Spanish flags** pointed at no real errors (0 of 11).
 
 More tables and examples are in [RESULTS.md](RESULTS.md).
 
 ## What we'd do next
-1. Fix the broken-decode check so a looping decode can't make the others look empty.
-2. Fine-tune on a mix of real code-switched sources, including Spanish–English conversation, and train harder on short switch-point phrases.
-3. Test with real clinic conversations from bilingual patients, with their permission.
+1. Fine-tune on a mix of real code-switched sources, including Spanish–English conversation, and train harder on short switch-point phrases.
+2. Test with real clinic conversations from bilingual patients, with their permission.
 
 ## Sources
 - **Datasets:**

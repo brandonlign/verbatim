@@ -22,13 +22,12 @@ MER is total edits (substitutions, deletions, insertions) divided by total refer
 | Mandarin forced + prompt | 25.6% | 5 | 108 |
 | English forced + prompt | 37.2% | 23 | 112 |
 | v1 | 27.5% | 7 | — |
-| v2 | 21.3% | 18 | 95 |
-| **v3 (fine-tuned)** | **16.1%** | **14** | **74** |
-| Fine-tuned decode alone (not the chosen system) | 12.3% | 13 | 74 |
+| v2 | 17.5% | 18 | 94 |
+| **v3 (fine-tuned)** | **12.3%** | **14** | **74** |
 
-- v3 vs plain: the MER difference is 7.2 points (bootstrap 95% CI 5.6–8.8), a 31% relative cut (CI 21–42%).
-- Per line: v3 was better on 165, worse on 36 and the same on 168.
-- v3 picked the fine-tuned decode on 361 of 369 clips. Most of the gap to the fine-tuned decode alone is one clip where plain Whisper looped ("go go go…" 223 times): the broken-decode check marked the fine-tuned decode "nearly empty" next to the loop, every decode counted as broken, and v3 kept the loop. The line was flagged. The check is left as frozen.
+- v3 vs plain: the MER difference is 10.9 points (bootstrap 95% CI 6.0–19.9), a 47% relative cut (CI 33–62%). The interval is wide partly because of one clip where plain Whisper looped "go go go…" 223 times.
+- Per line: v3 was better on 166, worse on 36 and the same on 167.
+- v3 picked the fine-tuned decode on 362 of 369 clips.
 - The automatic count over-counts translations. On the 29 lines it marked, a native reader confirmed 14 as translations and 12 as hallucinations. Human labels are the answer key.
 
 ### Blind human labels
